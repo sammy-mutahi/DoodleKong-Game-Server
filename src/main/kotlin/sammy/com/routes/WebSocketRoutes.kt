@@ -80,6 +80,7 @@ fun Route.standardWebSocket(
                         TYPE_DRAW_DATA -> DrawData::class.java
                         TYPE_ANNOUNCEMENT -> Announcement::class.java
                         Constants.TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
+                        Constants.TYPE_PHASE_CHANGED -> PhaseChange::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
