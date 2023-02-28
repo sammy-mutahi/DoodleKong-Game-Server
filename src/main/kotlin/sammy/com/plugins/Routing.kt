@@ -7,10 +7,12 @@ import io.ktor.response.*
 import io.ktor.request.*
 import sammy.com.routes.createRoomRoute
 import sammy.com.routes.getRoomsRoute
+import sammy.com.routes.joinRoomRoute
 
 fun Application.configureRouting() {
-    install(Routing){
+    install(Routing) {
         createRoomRoute()
         getRoomsRoute()
+        joinRoomRoute()
     }
 }
