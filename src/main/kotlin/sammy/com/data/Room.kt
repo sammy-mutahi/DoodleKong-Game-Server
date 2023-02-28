@@ -30,9 +30,7 @@ class Room(
         set(value) {
             synchronized(field) {
                 field = value
-                phaseChangedListener?.let {
-                    it.invoke(value)
-                }
+                return@synchronized phaseChangedListener?.invoke(value)
             }
         }
 
@@ -53,8 +51,32 @@ class Room(
     }
 
     suspend fun addPlayer(clientId: String, username: String, socket: WebSocketSession): Player {
-        val player = Player(username, socket, clientId)
-        players = players + player
+        var indexToAdd = players.size - 1
+        val player = if (leftPlayers.containsKey(clientId)) {
+            val leftPlayer = leftPlayers[clientId]
+            leftPlayer?.first?.let {
+                it.socket = socket
+                it.isDrawing = drawingPlayer?.clientId == clientId
+                indexToAdd = leftPlayer.second
+                playerRemoveJobs[clientId]?.cancel()
+                playerRemoveJobs.remove(clientId)
+                leftPlayers.remove(clientId)
+                it
+            } ?: Player(username, socket, clientId)
+        } else {
+            Player(username, socket, clientId)
+        }
+
+        indexToAdd = when {
+            players.isEmpty() -> 0
+            indexToAdd >= players.size -> players.size - 1
+            else -> indexToAdd
+        }
+
+        val tempPlayers = players.toMutableList()
+        tempPlayers.add(indexToAdd, player)
+        players = tempPlayers.toList()
+
         if (players.size == 1) {
             phase = Phase.WAITING_FOR_PLAYERS
         } else if (players.size == 2 && phase == Phase.WAITING_FOR_PLAYERS) {
@@ -77,20 +99,20 @@ class Room(
         return player
     }
 
-    fun removePlayer(cliendId:String){
-        val player = players.find { it.clientId == cliendId } ?: return
+    fun removePlayer(clientId: String) {
+        val player = players.find { it.clientId == clientId } ?: return
         val index = players.indexOf(player)
-        leftPlayers[cliendId] = player to index
+        leftPlayers[clientId] = player to index
         players = players - player
 
-        playerRemoveJobs[cliendId] = GlobalScope.launch {
+        playerRemoveJobs[clientId] = GlobalScope.launch {
             delay(PLAYER_REMOVE_TIME)
-            val playerToRemove = leftPlayers[cliendId]
-            leftPlayers.remove(cliendId)
+            val playerToRemove = leftPlayers[clientId]
+            leftPlayers.remove(clientId)
             playerToRemove?.let {
                 players = players - it.first
             }
-            playerRemoveJobs.remove(cliendId)
+            playerRemoveJobs.remove(clientId)
         }
 
         val announcement = Announcement(
@@ -100,12 +122,12 @@ class Room(
         )
 
         GlobalScope.launch {
-           broadcastPlayerStates()
+            broadcastPlayerStates()
             broadcast(gson.toJson(announcement))
-            if (players.size == 1){
+            if (players.size == 1) {
                 phase = Phase.WAITING_FOR_PLAYERS
                 timerJob?.cancel()
-            }else if(players.isEmpty()){
+            } else if (players.isEmpty()) {
                 kill()
             }
         }
@@ -194,7 +216,7 @@ class Room(
         val newWords = NewWords(curWords!!)
         nextDrawingPlayer()
         GlobalScope.launch {
-            broadcastPlayerStates() //shows who is currently drawing
+            broadcastPlayerStates()
             drawingPlayer?.socket?.send(Frame.Text(gson.toJson(newWords)))
             timeAndNotify(DELAY_NEW_ROUND_TO_GAME_RUNNING)
         }
@@ -233,11 +255,11 @@ class Room(
             }
             broadcastPlayerStates()
             word?.let {
-                val choosenWord = ChoosenWord(
+                val chosenWord = ChosenWord(
                     it,
                     name
                 )
-                broadcast(gson.toJson(choosenWord))
+                broadcast(gson.toJson(chosenWord))
             }
             timeAndNotify(DELAY_SHOW_WORD_TO_NEW_ROUND)
             val phaseChange = PhaseChange(
@@ -341,7 +363,7 @@ class Room(
 
     }
 
-    private fun kill(){
+    private fun kill() {
         playerRemoveJobs.values.forEach {
             it.cancel()
         }

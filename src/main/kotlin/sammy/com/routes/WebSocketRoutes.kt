@@ -49,7 +49,7 @@ fun Route.gameWebSocketRoute() {
 
                 }
 
-                is ChoosenWord -> {
+                is ChosenWord -> {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
                     room.setWordAndSwitchGameRunning(payload.choosenWord)
                 }
@@ -90,7 +90,7 @@ fun Route.standardWebSocket(
                         TYPE_ANNOUNCEMENT -> Announcement::class.java
                         Constants.TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
                         Constants.TYPE_PHASE_CHANGED -> PhaseChange::class.java
-                        Constants.TYPE_CHOOSEN_WORD -> ChoosenWord::class.java
+                        Constants.TYPE_CHOOSEN_WORD -> ChosenWord::class.java
                         Constants.TYPE_GAME_STATE -> GameState::class.java
                         else -> BaseModel::class.java
                     }
