@@ -11,4 +11,5 @@ object Constants {
     const val TYPE_CHOOSEN_WORD = "TYPE_CHOOSEN_WORD"
     const val TYPE_GAME_STATE = "TYPE_GAME_STATE"
     const val TYPE_NEW_WORDS = "TYPE_NEW_WORDS"
+    const val TYPE_PLAYERS_LIST = "TYPE_PLAYERS_LIST"
 }

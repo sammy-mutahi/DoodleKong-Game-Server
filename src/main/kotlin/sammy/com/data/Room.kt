@@ -67,10 +67,17 @@ class Room(
             timestamp = System.currentTimeMillis(),
             announcementType = Announcement.TYPE_PLAYER_JOINED
         )
-
+        sendWordToPlayer(player)
+        broadcastPlayerStates()
         broadcast(gson.toJson(announcement))
 
         return player
+    }
+
+    fun removePlayer(cliendId:String){
+        GlobalScope.launch {
+           broadcastPlayerStates()
+        }
     }
 
     private fun timeAndNotify(ms: Long) {
@@ -156,6 +163,7 @@ class Room(
         val newWords = NewWords(curWords!!)
         nextDrawingPlayer()
         GlobalScope.launch {
+            broadcastPlayerStates() //shows who is currently drawing
             drawingPlayer?.socket?.send(Frame.Text(gson.toJson(newWords)))
             timeAndNotify(DELAY_NEW_ROUND_TO_GAME_RUNNING)
         }
@@ -192,6 +200,7 @@ class Room(
                     it.score -= PENALTY_NOBODY_GUESSED_IT
                 }
             }
+            broadcastPlayerStates()
             word?.let {
                 val choosenWord = ChoosenWord(
                     it,
@@ -228,7 +237,7 @@ class Room(
             drawingPlayer?.let {
                 it.score += GUESS_SCORE_FOR_DRAWING_PLAYER / players.size
             }
-
+            broadcastPlayerStates()
             val announcement = Announcement(
                 "${message.from} has guessed it!",
                 System.currentTimeMillis(),
@@ -247,6 +256,18 @@ class Room(
             return true
         }
         return false
+    }
+
+    private suspend fun broadcastPlayerStates() {
+        val playerList = players.sortedByDescending {
+            it.score
+        }.map {
+            PlayerData(it.username, it.isDrawing, it.score, it.rank)
+        }
+        playerList.forEachIndexed { index, playerData ->
+            playerData.rank = index + 1
+        }
+        broadcast(gson.toJson(PlayersList(playerList)))
     }
 
     private suspend fun sendWordToPlayer(player: Player) {
