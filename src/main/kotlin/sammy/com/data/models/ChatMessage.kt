@@ -1,6 +1,6 @@
 package sammy.com.data.models
 
-import sammy.com.Constants
+import sammy.com.util.Constants
 
 data class ChatMessage(
     val from: String,

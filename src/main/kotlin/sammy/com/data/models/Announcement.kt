@@ -1,6 +1,6 @@
 package sammy.com.data.models
 
-import sammy.com.Constants.TYPE_ANNOUNCEMENT
+import sammy.com.util.Constants.TYPE_ANNOUNCEMENT
 
 data class Announcement(
     val message:String,

@@ -1,6 +1,6 @@
 package sammy.com.data.models
 
-import sammy.com.Constants.TYPE_DRAW_DATA
+import sammy.com.util.Constants.TYPE_DRAW_DATA
 
 data class DrawData(
     val roomName:String,

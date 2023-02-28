@@ -5,7 +5,7 @@ import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import sammy.com.Constants
+import sammy.com.util.Constants
 import sammy.com.data.Room
 import sammy.com.data.models.BasicApiResponse
 import sammy.com.data.models.CreateRoomRequest

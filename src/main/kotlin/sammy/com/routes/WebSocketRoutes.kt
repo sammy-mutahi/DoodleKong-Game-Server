@@ -6,10 +6,10 @@ import io.ktor.routing.*
 import io.ktor.sessions.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.consumeEach
-import sammy.com.Constants
-import sammy.com.Constants.TYPE_ANNOUNCEMENT
-import sammy.com.Constants.TYPE_CHAT_MESSAGE
-import sammy.com.Constants.TYPE_DRAW_DATA
+import sammy.com.util.Constants
+import sammy.com.util.Constants.TYPE_ANNOUNCEMENT
+import sammy.com.util.Constants.TYPE_CHAT_MESSAGE
+import sammy.com.util.Constants.TYPE_DRAW_DATA
 import sammy.com.data.Player
 import sammy.com.data.Room
 import sammy.com.data.models.*
