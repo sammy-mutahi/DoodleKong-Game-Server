@@ -7,11 +7,37 @@ import io.ktor.sessions.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.consumeEach
 import sammy.com.Constants
+import sammy.com.Constants.TYPE_CHAT_MESSAGE
+import sammy.com.Constants.TYPE_DRAW_DATA
+import sammy.com.data.Room
 import sammy.com.data.models.BaseModel
 import sammy.com.data.models.ChatMessage
+import sammy.com.data.models.DrawData
 import sammy.com.gson
+import sammy.com.server
 import sammy.com.session.DrawingSession
 import java.lang.Exception
+
+
+fun Route.gameWebSocketRoute() {
+    route("/ws/draw") {
+        standardWebSocket { socket, clientId, message, payload ->
+            when (payload) {
+                is DrawData -> {
+                    val room = server.rooms[payload.roomName] ?: return@standardWebSocket
+                    if (room.phase == Room.Phase.GAME_RUNNING){
+                        room.broadcastToAllExcept(message,clientId)
+                    }
+
+                }
+
+                is ChatMessage -> {
+
+                }
+            }
+        }
+    }
+}
 
 fun Route.standardWebSocket(
     handleFrame: suspend (
@@ -33,7 +59,8 @@ fun Route.standardWebSocket(
                     val message = frame.readText()
                     val jsonObject = JsonParser.parseString(message).asJsonObject
                     val type = when (jsonObject.get("type").asString) {
-                        Constants.TYPE_CHAT_MESSAGE -> ChatMessage::class.java
+                        TYPE_CHAT_MESSAGE -> ChatMessage::class.java
+                        TYPE_DRAW_DATA -> DrawData::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
