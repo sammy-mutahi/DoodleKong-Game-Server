@@ -2,6 +2,8 @@ package sammy.com.data
 
 import io.ktor.http.cio.websocket.*
 import kotlinx.coroutines.isActive
+import sammy.com.data.models.Announcement
+import sammy.com.gson
 
 class Room(
     val name: String,
@@ -34,6 +36,30 @@ class Room(
                 Phase.SHOW_WORD -> showWord()
             }
         }
+    }
+
+    suspend fun addPlayer(clientId: String,username: String,socket:WebSocketSession):Player{
+        val player = Player(username,socket,clientId)
+        players = players + player
+        if (players.size == 1){
+            phase = Phase.WAITING_FOR_PLAYERS
+        }else if(players.size == 2 && phase == Phase.WAITING_FOR_PLAYERS){
+            phase = Phase.WAITING_FOR_START
+            players = players.shuffled()
+        }else if (phase == Phase.WAITING_FOR_START && players.size == maxPlayers){
+            phase = Phase.NEW_ROUND
+            players = players.shuffled()
+        }
+
+        val announcement = Announcement(
+            message = "$username joined the party!",
+            timestamp = System.currentTimeMillis(),
+            announcementType = Announcement.TYPE_PLAYER_JOINED
+        )
+
+        broadcast(gson.toJson(announcement))
+
+        return player
     }
 
     suspend fun broadcast(message: String) {
