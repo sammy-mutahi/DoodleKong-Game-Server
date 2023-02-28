@@ -26,6 +26,9 @@ class Room(
     private var startTime = 0L
     private var playerRemoveJobs = ConcurrentHashMap<String, Job>()
     private var leftPlayers = ConcurrentHashMap<String, Pair<Player, Int>>()
+    var lastDrawData: DrawData? = null
+
+    private var currentRoundDrawData: List<String> = listOf()
     var phase = Phase.WAITING_FOR_PLAYERS
         set(value) {
             synchronized(field) {
@@ -46,6 +49,26 @@ class Room(
                 Phase.NEW_ROUND -> newRound()
                 Phase.GAME_RUNNING -> gameRunning()
                 Phase.SHOW_WORD -> showWord()
+            }
+        }
+    }
+
+    fun addSerializedDrawAction(drawAction: String) {
+        currentRoundDrawData = currentRoundDrawData + drawAction
+
+    }
+
+    private suspend fun sendCurRoundDrawInfoToPlayer(player: Player) {
+        if (phase == Phase.GAME_RUNNING || phase == Phase.SHOW_WORD) {
+            player.socket.send(Frame.Text(gson.toJson(RoundDrawInfo(currentRoundDrawData))))
+        }
+    }
+
+    private suspend fun finishOffDrawing(){
+        lastDrawData?.let {
+            if (currentRoundDrawData.isNotEmpty() && it.motionEvent == 2){
+                val finishDrawData = it.copy(motionEvent = 1)
+                broadcast(gson.toJson(finishDrawData))
             }
         }
     }
@@ -94,6 +117,7 @@ class Room(
         )
         sendWordToPlayer(player)
         broadcastPlayerStates()
+        sendCurRoundDrawInfoToPlayer(player)
         broadcast(gson.toJson(announcement))
 
         return player
@@ -152,9 +176,15 @@ class Room(
             }
             phase = when (phase) {
                 Phase.WAITING_FOR_START -> Phase.NEW_ROUND
-                Phase.GAME_RUNNING -> Phase.SHOW_WORD
+                Phase.GAME_RUNNING -> {
+                    finishOffDrawing()
+                    Phase.SHOW_WORD
+                }
                 Phase.SHOW_WORD -> Phase.NEW_ROUND
-                Phase.NEW_ROUND -> Phase.GAME_RUNNING
+                Phase.NEW_ROUND -> {
+                    word = null
+                    Phase.GAME_RUNNING
+                }
                 else -> Phase.WAITING_FOR_PLAYERS
             }
         }
@@ -212,6 +242,7 @@ class Room(
     }
 
     private fun newRound() {
+        currentRoundDrawData = listOf()
         curWords = getRandomWords(3)
         val newWords = NewWords(curWords!!)
         nextDrawingPlayer()

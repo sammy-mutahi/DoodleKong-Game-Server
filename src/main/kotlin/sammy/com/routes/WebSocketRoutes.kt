@@ -38,7 +38,7 @@ fun Route.gameWebSocketRoute() {
                     server.playerJoined(player)
                     if (!room.containsPlayer(player.username)) {
                         room.addPlayer(player.clientId, player.username, socket)
-                    }else{
+                    } else {
                         val playerInRoom = room.players.find { it.clientId == clientId }
                         playerInRoom?.socket = socket
                         playerInRoom?.startPinging()
@@ -49,7 +49,9 @@ fun Route.gameWebSocketRoute() {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
                     if (room.phase == Room.Phase.GAME_RUNNING) {
                         room.broadcastToAllExcept(message, clientId)
+                        room.addSerializedDrawAction(message)
                     }
+                    room.lastDrawData = payload
 
                 }
 
@@ -65,8 +67,18 @@ fun Route.gameWebSocketRoute() {
                     }
                 }
 
-                is Ping ->{
+                is Ping -> {
                     server.players[clientId]?.receivedPong()
+                }
+
+                is DisconnectRequest -> {
+                    server.playerLeft(clientId, true)
+                }
+
+                is DrawAction -> {
+                    val room = server.getRoomWithClientId(clientId) ?: return@standardWebSocket
+                    room.broadcastToAllExcept(message, clientId)
+                    room.addSerializedDrawAction(message)
                 }
             }
         }
@@ -101,6 +113,8 @@ fun Route.standardWebSocket(
                         Constants.TYPE_CHOOSEN_WORD -> ChosenWord::class.java
                         Constants.TYPE_GAME_STATE -> GameState::class.java
                         Constants.TYPE_PING -> Ping::class.java
+                        Constants.TYPE_DISCONNECT_REQUEST -> DisconnectRequest::class.java
+                        Constants.TYPE_DRAW_ACTION -> DrawAction::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
