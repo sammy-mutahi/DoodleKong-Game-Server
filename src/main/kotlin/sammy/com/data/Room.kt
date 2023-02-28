@@ -4,8 +4,11 @@ import io.ktor.http.cio.websocket.*
 import kotlinx.coroutines.*
 import sammy.com.data.models.Announcement
 import sammy.com.data.models.ChoosenWord
+import sammy.com.data.models.GameState
 import sammy.com.data.models.PhaseChange
 import sammy.com.gson
+import sammy.com.util.transformToUnderScores
+import sammy.com.util.words
 
 class Room(
     val name: String,
@@ -17,7 +20,8 @@ class Room(
     private var timerJob: Job? = null
     private var drawingPlayer: Player? = null
     private var winningPlayers = listOf<String>()
-    private var word:String = ""
+    private var word: String? = null
+    private var curWords: List<String>? = null
     var phase = Phase.WAITING_FOR_PLAYERS
         set(value) {
             synchronized(field) {
@@ -114,7 +118,7 @@ class Room(
         return players.find { it.username == username } != null
     }
 
-    fun setWordAndSwitchGameRunning(word:String){
+    fun setWordAndSwitchGameRunning(word: String) {
         this.word = word
         phase = Phase.GAME_RUNNING
     }
@@ -145,24 +149,42 @@ class Room(
     }
 
     private fun gameRunning() {
-
+        winningPlayers = listOf()
+        val wordsToSend = word ?: curWords?.random() ?: words.random()
+        val wordWithUnderscores = wordsToSend.transformToUnderScores()
+        val drawingUsername = (drawingPlayer ?: players.random()).username
+        val gameStateForDrawingPlayer = GameState(
+            drawingUsername,
+            wordsToSend
+        )
+        val gameStateForGuessingPlayers = GameState(
+            drawingUsername,
+            wordWithUnderscores
+        )
+        GlobalScope.launch {
+            broadcastToAllExcept(
+                gson.toJson(gameStateForGuessingPlayers),
+                drawingPlayer?.clientId ?: players.random().clientId
+            )
+            drawingPlayer?.socket?.send(Frame.Text(gson.toJson(gameStateForDrawingPlayer)))
+            timeAndNotify(DELAY_GAME_RUNNING_TO_SHOW_WORD)
+            println("Drawing phase in room $name started. It'LL last ${DELAY_GAME_RUNNING_TO_SHOW_WORD / 1000}s")
+        }
     }
 
     private fun showWord() {
         GlobalScope.launch {
-            if (winningPlayers.isEmpty()){
+            if (winningPlayers.isEmpty()) {
                 drawingPlayer?.let {
                     it.score -= PENALTY_NOBODY_GUESSED_IT
                 }
             }
-            if (word.isNotEmpty()){
+            word?.let {
                 val choosenWord = ChoosenWord(
-                    word,
+                    it,
                     name
                 )
                 broadcast(gson.toJson(choosenWord))
-            }else{
-                //empty
             }
             timeAndNotify(DELAY_SHOW_WORD_TO_NEW_ROUND)
             val phaseChange = PhaseChange(

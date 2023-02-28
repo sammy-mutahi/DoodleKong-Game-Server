@@ -88,6 +88,7 @@ fun Route.standardWebSocket(
                         Constants.TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
                         Constants.TYPE_PHASE_CHANGED -> PhaseChange::class.java
                         Constants.TYPE_CHOOSEN_WORD -> ChoosenWord::class.java
+                        Constants.TYPE_GAME_STATE -> GameState::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
