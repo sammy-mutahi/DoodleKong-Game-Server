@@ -49,14 +49,14 @@ fun Route.gameWebSocketRoute() {
 
                 }
 
-                is ChoosenWord ->{
+                is ChoosenWord -> {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
                     room.setWordAndSwitchGameRunning(payload.choosenWord)
                 }
 
                 is ChatMessage -> {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
-                    if(!room.checkWordAndNotifyPlayers(payload)){
+                    if (!room.checkWordAndNotifyPlayers(payload)) {
                         room.broadcast(message)
                     }
                 }
@@ -102,6 +102,12 @@ fun Route.standardWebSocket(
             e.printStackTrace()
         } finally {
             //handle disconnects
+            val playerWithClientId = server.getRoomWithClientId(session.clientId)?.players?.find {
+                it.clientId == session.clientId
+            }
+            if (playerWithClientId != null) {
+                server.playerLeft(session.clientId)
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import sammy.com.util.getRandomWords
 import sammy.com.util.matchesWord
 import sammy.com.util.transformToUnderScores
 import sammy.com.util.words
+import java.util.concurrent.ConcurrentHashMap
 
 class Room(
     val name: String,
@@ -23,6 +24,8 @@ class Room(
     private var curWords: List<String>? = null
     private var drawingPlayerIndex = 0
     private var startTime = 0L
+    private var playerRemoveJobs = ConcurrentHashMap<String, Job>()
+    private var leftPlayers = ConcurrentHashMap<String, Pair<Player, Int>>()
     var phase = Phase.WAITING_FOR_PLAYERS
         set(value) {
             synchronized(field) {
@@ -75,8 +78,36 @@ class Room(
     }
 
     fun removePlayer(cliendId:String){
+        val player = players.find { it.clientId == cliendId } ?: return
+        val index = players.indexOf(player)
+        leftPlayers[cliendId] = player to index
+        players = players - player
+
+        playerRemoveJobs[cliendId] = GlobalScope.launch {
+            delay(PLAYER_REMOVE_TIME)
+            val playerToRemove = leftPlayers[cliendId]
+            leftPlayers.remove(cliendId)
+            playerToRemove?.let {
+                players = players - it.first
+            }
+            playerRemoveJobs.remove(cliendId)
+        }
+
+        val announcement = Announcement(
+            "${player.username} left the party :(",
+            System.currentTimeMillis(),
+            Announcement.TYPE_PLAYER_LEFT
+        )
+
         GlobalScope.launch {
            broadcastPlayerStates()
+            broadcast(gson.toJson(announcement))
+            if (players.size == 1){
+                phase = Phase.WAITING_FOR_PLAYERS
+                timerJob?.cancel()
+            }else if(players.isEmpty()){
+                kill()
+            }
         }
     }
 
@@ -310,6 +341,13 @@ class Room(
 
     }
 
+    private fun kill(){
+        playerRemoveJobs.values.forEach {
+            it.cancel()
+        }
+        timerJob?.cancel()
+    }
+
     enum class Phase {
         WAITING_FOR_PLAYERS,
         WAITING_FOR_START,
@@ -324,6 +362,7 @@ class Room(
         const val DELAY_NEW_ROUND_TO_GAME_RUNNING = 20000L
         const val DELAY_GAME_RUNNING_TO_SHOW_WORD = 60000L
         const val DELAY_SHOW_WORD_TO_NEW_ROUND = 10000L
+        const val PLAYER_REMOVE_TIME = 60000L
         const val PENALTY_NOBODY_GUESSED_IT = 50
         const val GUESS_SCORE_DEFAULT = 50
         const val GUESS_SCORE_PERCENTAGE_MULTIPLIER = 50
