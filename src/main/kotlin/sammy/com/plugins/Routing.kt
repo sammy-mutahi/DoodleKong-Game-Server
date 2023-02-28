@@ -5,11 +5,12 @@ import io.ktor.http.*
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.request.*
+import sammy.com.routes.createRoomRoute
+import sammy.com.routes.getRoomsRoute
 
 fun Application.configureRouting() {
-    routing {
-        get("/") {
-            call.respondText("Hello World!")
-        }
+    install(Routing){
+        createRoomRoute()
+        getRoomsRoute()
     }
 }
