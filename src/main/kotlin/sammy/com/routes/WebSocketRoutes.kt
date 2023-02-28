@@ -23,9 +23,9 @@ fun Route.gameWebSocketRoute() {
     route("/ws/draw") {
         standardWebSocket { socket, clientId, message, payload ->
             when (payload) {
-                is JoinRoomHandshake ->{ //comes from a client
+                is JoinRoomHandshake -> { //comes from a client
                     val room = server.rooms[payload.roomName]
-                    if (room == null){
+                    if (room == null) {
                         val gameError = GameError(GameError.ERROR_ROOM_NOT_FOUND)
                         socket.send(Frame.Text(gson.toJson(gameError)))
                         return@standardWebSocket
@@ -36,16 +36,22 @@ fun Route.gameWebSocketRoute() {
                         payload.clientId
                     )
                     server.playerJoined(player)
-                    if (!room.containsPlayer(player.username)){
-                        room.addPlayer(player.clientId,player.username,socket)
+                    if (!room.containsPlayer(player.username)) {
+                        room.addPlayer(player.clientId, player.username, socket)
                     }
                 }
+
                 is DrawData -> {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
-                    if (room.phase == Room.Phase.GAME_RUNNING){
-                        room.broadcastToAllExcept(message,clientId)
+                    if (room.phase == Room.Phase.GAME_RUNNING) {
+                        room.broadcastToAllExcept(message, clientId)
                     }
 
+                }
+
+                is ChoosenWord ->{
+                    val room = server.rooms[payload.roomName] ?: return@standardWebSocket
+                    room.setWordAndSwitchGameRunning(payload.choosenWord)
                 }
 
                 is ChatMessage -> {
@@ -81,6 +87,7 @@ fun Route.standardWebSocket(
                         TYPE_ANNOUNCEMENT -> Announcement::class.java
                         Constants.TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
                         Constants.TYPE_PHASE_CHANGED -> PhaseChange::class.java
+                        Constants.TYPE_CHOOSEN_WORD -> ChoosenWord::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
