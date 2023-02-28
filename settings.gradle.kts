@@ -1,0 +1,1 @@
+rootProject.name = "sammy.com.ktor-doodlekong"
